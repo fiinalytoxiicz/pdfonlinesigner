@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Vorschau mit Unterschrift</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .page-navigation {
+            background: #34495e;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .page-btn:hover {
+            background: #2980b9;
+        }
+
+        .page-btn.active {
+            background: #e74c3c;
+        }
+
+        .page-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .pdf-container {
+            position: relative;
+            padding: 20px;
+            min-height: 600px;
+            background: #ecf0f1;
+        }
+
+        .page {
+            display: none;
+            background: white;
+            margin: 0 auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            width: 595px;
+            height: 842px;
+            transform: scale(0.8);
+            transform-origin: top center;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: white;
+            padding: 40px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 20px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+
+        .content-area {
+            margin-bottom: 30px;
+        }
+
+        .content-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .content-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #34495e;
+            margin-bottom: 20px;
+        }
+
+        .signature-section {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
+        }
+
+        .signature-line {
+            border-bottom: 2px solid #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+        }
+
+        .signature-field {
+            display: inline-block;
+            width: 200px;
+            height: 60px;
+            border: 2px dashed #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 5px;
+            margin: 10px 20px 10px 0;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .signature-field:hover {
+            border-color: #c0392b;
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .signature-field::before {
+            content: "Unterschrift";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e74c3c;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .text-field {
+            display: inline-block;
+            width: 150px;
+            height: 30px;
+            border: 2px dashed #3498db;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 5px;
+            margin: 10px 20px 10px 0;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .text-field:hover {
+            border-color: #2980b9;
+            background: rgba(52, 152, 219, 0.2);
+        }
+
+        .text-field::before {
+            content: attr(data-label);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #3498db;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .field-row {
+            margin-bottom: 15px;
+        }
+
+        .field-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .controls {
+            background: #34495e;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .control-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background 0.3s;
+        }
+
+        .control-btn:hover {
+            background: #229954;
+        }
+
+        .control-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: white;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .page {
+                width: 100%;
+                height: auto;
+                transform: none;
+            }
+            
+            .page-content {
+                padding: 20px;
+            }
+            
+            .signature-section {
+                position: relative;
+                bottom: auto;
+                left: auto;
+                right: auto;
+                margin-top: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PDF Vorschau mit Unterschrift</h1>
+            <p>Mehrseitige PDF-Vorschau mit Unterschriftsfeldern und Textfeldern</p>
+        </div>
+
+        <div class="page-navigation">
+            <button class="page-btn" onclick="showPage(1)">Seite 1</button>
+            <button class="page-btn" onclick="showPage(2)">Seite 2</button>
+            <button class="page-btn" onclick="showPage(3)">Seite 3</button>
+            <button class="page-btn" onclick="showPage(4)">Seite 4</button>
+            <button class="page-btn" onclick="showPage(5)">Seite 5</button>
+        </div>
+
+        <div class="pdf-container">
+            <!-- Seite 1 -->
+            <div class="page" id="page1">
+                <div class="page-content">
+                    <div class="page-header">
+                        <div class="page-title">Angebot - Seite 1</div>
+                        <div class="page-subtitle">Geschäftsbedingungen und Allgemeine Informationen</div>
+                    </div>
+                    
+                    <div class="content-area">
+                        <div class="content-title">Allgemeine Geschäftsbedingungen</div>
+                        <div class="content-text">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                        </div>
+                        <div class="content-text">
+                            Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="field-row">
+                            <div class="field-label">Unterschrift und Datum:</div>
+                            <div class="signature-field" onclick="addSignature(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Ort und Stempel:</div>
+                            <div class="text-field" data-label="Stadt" onclick="addTextField(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seite 2 -->
+            <div class="page" id="page2">
+                <div class="page-content">
+                    <div class="page-header">
+                        <div class="page-title">Angebot - Seite 2</div>
+                        <div class="page-subtitle">Leistungsbeschreibung und Spezifikationen</div>
+                    </div>
+                    
+                    <div class="content-area">
+                        <div class="content-title">Leistungsbeschreibung</div>
+                        <div class="content-text">
+                            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+                        </div>
+                        <div class="content-text">
+                            Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="field-row">
+                            <div class="field-label">Unterschrift und Datum:</div>
+                            <div class="signature-field" onclick="addSignature(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Ort und Stempel:</div>
+                            <div class="text-field" data-label="Stadt" onclick="addTextField(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seite 3 -->
+            <div class="page" id="page3">
+                <div class="page-content">
+                    <div class="page-header">
+                        <div class="page-title">Angebot - Seite 3</div>
+                        <div class="page-subtitle">Preisliste und Zahlungsbedingungen</div>
+                    </div>
+                    
+                    <div class="content-area">
+                        <div class="content-title">Preisliste</div>
+                        <div class="content-text">
+                            At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.
+                        </div>
+                        <div class="content-text">
+                            Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio.
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="field-row">
+                            <div class="field-label">Unterschrift und Datum:</div>
+                            <div class="signature-field" onclick="addSignature(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Ort und Stempel:</div>
+                            <div class="text-field" data-label="Stadt" onclick="addTextField(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seite 4 -->
+            <div class="page" id="page4">
+                <div class="page-content">
+                    <div class="page-header">
+                        <div class="page-title">Angebot - Seite 4</div>
+                        <div class="page-subtitle">Garantie und Support</div>
+                    </div>
+                    
+                    <div class="content-area">
+                        <div class="content-title">Garantie und Support</div>
+                        <div class="content-text">
+                            Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.
+                        </div>
+                        <div class="content-text">
+                            Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="field-row">
+                            <div class="field-label">Unterschrift und Datum:</div>
+                            <div class="signature-field" onclick="addSignature(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Ort und Stempel:</div>
+                            <div class="text-field" data-label="Stadt" onclick="addTextField(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seite 5 (Letzte Seite) -->
+            <div class="page" id="page5">
+                <div class="page-content">
+                    <div class="page-header">
+                        <div class="page-title">Angebot - Seite 5</div>
+                        <div class="page-subtitle">Unterschrift und Genehmigung</div>
+                    </div>
+                    
+                    <div class="content-area">
+                        <div class="content-title">Genehmigung und Unterschrift</div>
+                        <div class="content-text">
+                            Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.
+                        </div>
+                        <div class="content-text">
+                            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus.
+                        </div>
+                    </div>
+
+                    <div class="signature-section">
+                        <div class="field-row">
+                            <div class="field-label">Unterschrift und Datum:</div>
+                            <div class="signature-field" onclick="addSignature(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field-label">Ort und Stempel:</div>
+                            <div class="text-field" data-label="Stadt" onclick="addTextField(this)"></div>
+                            <div class="text-field" data-label="Datum" onclick="addTextField(this)"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="clearAllFields()">Alle Felder löschen</button>
+            <button class="control-btn" onclick="exportPDF()">PDF Exportieren</button>
+            <div class="page-info">Seite 5 von 5 angezeigt (Letzte Seite zuerst)</div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 5; // Start with last page
+        let signatureData = null;
+        let textFieldData = {};
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage(5); // Show last page first
+            updateNavigationButtons();
+        });
+
+        function showPage(pageNumber) {
+            // Hide all pages
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.remove('active'));
+
+            // Show selected page
+            const selectedPage = document.getElementById('page' + pageNumber);
+            if (selectedPage) {
+                selectedPage.classList.add('active');
+                currentPage = pageNumber;
+                updateNavigationButtons();
+            }
+        }
+
+        function updateNavigationButtons() {
+            const buttons = document.querySelectorAll('.page-btn');
+            buttons.forEach((btn, index) => {
+                btn.classList.remove('active');
+                if (index + 1 === currentPage) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function addSignature(field) {
+            // Create a simple signature input
+            const signature = prompt('Bitte geben Sie Ihre Unterschrift ein:');
+            if (signature) {
+                field.innerHTML = signature;
+                field.style.border = '2px solid #27ae60';
+                field.style.background = 'rgba(39, 174, 96, 0.1)';
+                field.style.color = '#27ae60';
+                field.style.fontWeight = 'bold';
+                field.style.fontSize = '14px';
+                field.onclick = null; // Remove click handler
+            }
+        }
+
+        function addTextField(field) {
+            const label = field.getAttribute('data-label');
+            const value = prompt(`Bitte geben Sie ${label} ein:`);
+            if (value) {
+                field.innerHTML = value;
+                field.style.border = '2px solid #27ae60';
+                field.style.background = 'rgba(39, 174, 96, 0.1)';
+                field.style.color = '#27ae60';
+                field.style.fontWeight = 'bold';
+                field.style.fontSize = '12px';
+                field.onclick = null; // Remove click handler
+                
+                // Store the data
+                const fieldId = `${currentPage}_${label}_${Math.random().toString(36).substr(2, 9)}`;
+                textFieldData[fieldId] = {
+                    page: currentPage,
+                    label: label,
+                    value: value
+                };
+            }
+        }
+
+        function clearAllFields() {
+            // Reset all signature fields
+            const signatureFields = document.querySelectorAll('.signature-field');
+            signatureFields.forEach(field => {
+                field.innerHTML = '';
+                field.style.border = '2px dashed #e74c3c';
+                field.style.background = 'rgba(231, 76, 60, 0.1)';
+                field.style.color = '#e74c3c';
+                field.style.fontWeight = 'normal';
+                field.style.fontSize = '12px';
+                field.onclick = function() { addSignature(this); };
+            });
+
+            // Reset all text fields
+            const textFields = document.querySelectorAll('.text-field');
+            textFields.forEach(field => {
+                field.innerHTML = '';
+                field.style.border = '2px dashed #3498db';
+                field.style.background = 'rgba(52, 152, 219, 0.1)';
+                field.style.color = '#3498db';
+                field.style.fontWeight = 'normal';
+                field.style.fontSize = '10px';
+                field.onclick = function() { addTextField(this); };
+            });
+
+            // Clear stored data
+            textFieldData = {};
+            signatureData = null;
+        }
+
+        function exportPDF() {
+            // Simulate PDF export
+            alert('PDF Export würde hier implementiert werden.\n\nFilled Fields:\n' + 
+                  Object.keys(textFieldData).length + ' text fields filled\n' +
+                  'Signature fields: ' + document.querySelectorAll('.signature-field[style*="27ae60"]').length + ' filled');
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    if (currentPage > 1) {
+                        showPage(currentPage - 1);
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (currentPage < 5) {
+                        showPage(currentPage + 1);
+                    }
+                    break;
+                case 'Home':
+                    showPage(1);
+                    break;
+                case 'End':
+                    showPage(5);
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
